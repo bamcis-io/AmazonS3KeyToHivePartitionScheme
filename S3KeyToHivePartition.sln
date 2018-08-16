@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27703.2018
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "S3KeyToHivePartition", "S3KeyToHivePartition\S3KeyToHivePartition.csproj", "{65D564F7-C13F-45C9-B9C6-95C2AE1ABF79}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "S3KeyToHivePartition.Tests", "S3KeyToHivePartition.Tests\S3KeyToHivePartition.Tests.csproj", "{E789F900-5070-476C-996A-8D9244C6B30D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{65D564F7-C13F-45C9-B9C6-95C2AE1ABF79}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{65D564F7-C13F-45C9-B9C6-95C2AE1ABF79}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{65D564F7-C13F-45C9-B9C6-95C2AE1ABF79}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{65D564F7-C13F-45C9-B9C6-95C2AE1ABF79}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E789F900-5070-476C-996A-8D9244C6B30D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E789F900-5070-476C-996A-8D9244C6B30D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E789F900-5070-476C-996A-8D9244C6B30D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E789F900-5070-476C-996A-8D9244C6B30D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5868CB8D-3971-416E-A92B-CC6036F541EE}
+	EndGlobalSection
+EndGlobal
