@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    <AWSProjectType>Lambda</AWSProjectType>
+    <RootNamespace>BAMCIS.LambdaFunctions.AmazonS3KeyToHivePartitionScheme</RootNamespace>
+    <Authors>Michael Haken</Authors>
+    <Company>bamcis.io</Company>
+    <Description>Converts S3 keys written in a value1/value2/value3/filename.txt format to key1=value1/key2=value2/key3=value3/filename.txt format used by Hive for partitions.</Description>
+    <Copyright>bamcis.io</Copyright>
+    <PackageLicenseUrl>https://raw.githubusercontent.com/bamcis-io/S3KeyToHivePartition/master/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/bamcis-io/S3KeyToHivePartition</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/bamcis-io/AWSLambda.Common</RepositoryUrl>
+    <RepositoryType>Git</RepositoryType>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <PackageId>AmazonS3KeyToHivePartitionScheme</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Amazon.Lambda.Core" Version="1.0.0" />
+    <PackageReference Include="Amazon.Lambda.S3Events" Version="1.0.2" />
+    <PackageReference Include="Amazon.Lambda.Serialization.Json" Version="1.3.0" />
+    <PackageReference Include="Amazon.Lambda.APIGatewayEvents" Version="1.1.3" />
+    <PackageReference Include="Amazon.Lambda.SNSEvents" Version="1.0.0" />
+    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="3.3.1.8" />
+    <PackageReference Include="BAMCIS.AWSLambda.Common" Version="1.7.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <DotNetCliToolReference Include="Amazon.Lambda.Tools" Version="2.2.0" />
+  </ItemGroup>
+
+</Project>

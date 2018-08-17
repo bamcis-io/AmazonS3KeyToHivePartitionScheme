@@ -1,0 +1,708 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Transform"                : "AWS::Serverless-2016-10-31",
+    "Description"              : "Takes records written by Firehose and converts them use Hive style partition key prefixes.",
+
+
+    "Parameters"               : {
+        "OutputBucketName" : {
+            "Description" : "The name of the bucket where the fixed up S3 key names will be placed",
+            "Type"        : "String",
+            "MinLength"   : 3,
+            "MaxLength"   : 63,
+            "AllowedPattern" : "^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$"
+        },
+        "IngestBucketName"  : {
+            "Description" : "The name of the bucket the Lambda function will be reading source objects from.",
+            "Type"        : "String",
+            "MinLength"   : 3,
+            "MaxLength"   : 63,
+            "AllowedPattern" : "^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$"
+        },
+        "CreateIngestBucket" : {
+            "Description" : "Specifies whether the ingest bucket should be created. If no, it is assumed to already exist.",
+            "Type"        : "String",
+            "AllowedValues" : [
+                "yes",
+                "no"
+            ],
+            "Default"       : "no"
+        },
+		"CreateOutputBucket" : {
+            "Description" : "Specifies whether the output bucket should be created. If no, it is assumed to already exist.",
+            "Type"        : "String",
+            "AllowedValues" : [
+                "yes",
+                "no"
+            ],
+            "Default"       : "yes"
+        },
+
+		"FunctionName" : {
+			"Description" : "The name of the Lambda function.",
+			"Type" : "String",
+			"MinLength" : 3,
+			"Default" : "S3KeyToHivePartition"
+		},
+
+        "NewKeyPattern"      : {
+            "Description" : "The string that will be used to create the new S3 object key. It will be used in String.Format(). For example, for a basic Kinesis Firehose delivery stream, you may want this: year={0}/month={1}/day={2}/hour={3}/{4}",
+            "Type"        : "String",
+            "Default"     : "year={0}/month={1}/day={2}/hour={3}/{4}"
+        },
+		"DeleteOriginal" : {
+			"Description" : "Indicates whether the source object should be deleted after being copied.",
+			"Type" : "String",
+			"AllowedValues" : [
+				"true",
+				"false"
+			],
+			"Default" : "true"
+		},
+
+        "LogRetentionInDays" : {
+            "Type" : "Number",
+            "Description" : "The number of days to retain the CloudWatch Logs for the function. If this is set to 0, it will be infinite retention.",
+            "MinValue"    : 0,
+            "Default"     : 7
+        },
+        "LambdaSNSLauncherTopicArn" : {
+            "Description" : "The SNS topic Arn that will trigger the lambda function. If this is blank, a new SNS topic will be created if the event notification method is set to sns.",
+            "Type"        : "String",
+			"Default" : "",
+            "AllowedPattern" : "(?:^$|^arn:aws(?:-us-gov|-cn)?:sns:.*?:[0-9]{12}:.*$)",
+			"ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|^arn:aws(?:-us-gov|-cn)?:sns:.*?:[0-9]{12}:.*$)"
+        },
+		"EventNotificationMethod" : {
+			"Description" : "Indicates the way the Lamba function is triggered, either directly from S3 or by SNS, which is a little more flexible, especially if the ingest bucket has been created in another CF stack.",
+			"Type" : "String",
+			"AllowedValues" : [
+				"sns",
+				"s3"
+			],
+			"Default" : "s3"
+		},
+
+        "FailureNotificationEmail"  : {
+            "Description" : "The email address to notifications during a lambda execution failure. If this is blank, no emails will be sent.",
+            "Type"        : "String"
+        },
+
+        "OrganizationTag"           : {
+            "Description" : "The organization this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$"
+        },
+        "ApplicationTag"            : {
+            "Description" : "The application this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$"
+        },
+        "EnvironmentTag"            : {
+            "Description" : "The environment this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$"
+        }
+    },
+
+	"Metadata" : {
+		"AWS::CloudFormation::Interface" : {
+			"ParameterGroups" : [
+				{
+					"Label" : {
+						"default" : "Lambda Configuration"
+					},
+					"Parameters" : [
+						"FunctionName",
+						"NewKeyPattern",
+						"DeleteOriginal",
+						"LogRetentionInDays",
+						"FailureNotificationEmail"
+					]
+				},
+				{
+					"Label" : {
+						"default" : "Lambda Event Configuration"
+					},
+					"Parameters" : [
+						"EventNotificationMethod",
+						"LambdaSNSLauncherTopicArn"
+					]
+				},
+				{
+					"Label" : {
+						"default" : "S3 Bucket Configuration"
+					},
+					"Parameters" : [
+						"IngestBucketName",
+						"CreateIngestBucket",
+						"OutputBucketName",
+						"CreateOutputBucket"
+					]
+				},
+				{
+					"Label" : {
+						"default" : "Tagging"
+					},
+					"Parameters" : [
+						"OrganizationTag",
+						"ApplicationTag",
+						"EnvironmentTag"
+					]
+				}
+				
+			]
+		}
+	},
+
+    "Conditions"               : {
+        "InfiniteRetention" : {
+            "Fn::Equals" : [
+                {
+                    "Ref" : "LogRetentionInDays"
+                },
+                0
+            ]
+        },
+        "CreateIngestS3Bucket" : {
+            "Fn::Equals" : [
+                {
+                    "Ref" : "CreateIngestBucket"
+                },
+                "yes"
+            ]
+        },
+		"CreateOutputS3Bucket" : {
+            "Fn::Equals" : [
+                {
+                    "Ref" : "CreateIngestBucket"
+                },
+                "yes"
+            ]
+        },
+		"UseSNSNotification" : {
+			"Fn::Equals" : [
+				{
+					"Ref" : "EventNotificationMethod"
+				},
+				"sns"
+			]
+		},
+		"UseS3Notification" : {
+			"Fn::Equals" : [
+				{
+					"Ref" : "EventNotificationMethod"
+				},
+				"s3"
+			]
+		},
+        "CreateLauncherSNSTopic" : {
+			"Fn::And" : [    
+				{
+					"Condition" : "UseSNSNotification"
+				},
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "LambdaSNSLauncherTopicArn"
+						},
+						""
+					]
+				}
+			]
+        },
+        "CreateFailureSNSTopic"  : {
+            "Fn::Not" : [
+                {
+                    "Fn::Equals" : [
+                        {
+                            "Ref" : "FailureNotificationEmail"
+                        },
+                        ""
+                    ]
+                }
+            ]
+        },
+		"CreateIngestS3BucketWithSNS" : {
+			"Fn::And" : [
+				{
+					"Condition" : "CreateIngestS3Bucket"
+				},
+				{
+					"Condition" : "UseSNSNotification"
+				}
+			]
+		},
+		"CreateIngestS3BucketWithS3" : {
+			"Fn::And" : [
+				{
+					"Condition" : "CreateIngestS3Bucket"
+				},
+				{
+					"Condition" : "UseS3Notification"
+				}
+			]
+		}
+    },
+
+	"Mappings" : {
+		"Internal" : {
+			"MethodName" : {
+				"sns" : "ExecSNS",
+				"s3" : "ExecS3"
+			}
+		}
+	},
+
+    "Resources"                : {
+        "LambdaFailureTopic" : {
+            "Type" : "AWS::SNS::Topic",
+            "Condition" : "CreateFailureSNSTopic",
+            "Properties" : {
+                "DisplayName" : "S3KeyToHivePartitionLambdaFailures",
+                "Subscription" : [
+                    {
+                        "Endpoint" : {
+                            "Ref" : "FailureNotificationEmail"
+                        },
+                        "Protocol" : "email"
+                    }
+                ],
+                "TopicName"    : "S3KeyToHivePartitionLambdaFailures"
+            }
+        },
+
+        "IngestS3BucketWithSNS"     : {
+            "Type" : "AWS::S3::Bucket",
+            "Condition" : "CreateIngestS3BucketWithSNS",
+            "Properties" : {
+                "BucketName" : {
+                    "Ref" : "IngestBucketName"
+                },
+				"NotificationConfiguration" : {
+					"TopicConfigurations" : [
+						{
+						 "Event" : "s3:ObjectCreated:*",
+						  "Topic" : {
+							"Ref" : "LambdaSNSLauncher"
+						  }
+						}
+					]
+				},
+                "Tags"       : [
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]            
+            },
+			"DependsOn" : [
+				"LambdaSNSLauncherPolicy"
+			]
+        },
+		"IngestS3BucketWithS3"     : {
+            "Type" : "AWS::S3::Bucket",
+            "Condition" : "CreateIngestS3BucketWithS3",
+            "Properties" : {
+                "BucketName" : {
+                    "Ref" : "IngestBucketName"
+                },
+				"NotificationConfiguration" : {
+					"LambdaConfigurations" : [
+						{
+							"Event" : "s3:ObjectCreated:*",
+							"Function" : {
+								"Fn::Sub" : "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${FunctionName}"
+							}
+						}
+					]
+				},
+                "Tags"       : [
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]            
+            }			
+        },
+        "LambdaSNSLauncherPolicy" : {
+            "Type" : "AWS::SNS::TopicPolicy",
+            "Condition" : "CreateLauncherSNSTopic",
+            "Properties" : {
+                "PolicyDocument" : {
+                    "Id" : "LambdaSNSLauncherPolicy",
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Sid" : "1",
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : "s3.amazonaws.com"
+                            },
+                            "Action"    : [
+                                "sns:Publish"
+                            ],
+                            "Resource"  : [
+                                "*"
+                            ],
+                            "Condition" : {
+                                "ArnLike" : {
+                                    "aws:SourceArn" : {
+                                        "Fn::Sub" : "arn:aws:s3:*:*:${IngestBucketName}"
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                },
+                "Topics"         : [
+                    {
+                        "Ref" : "LambdaSNSLauncher"
+                    }
+                ]
+            }
+        },
+        "LambdaSNSLauncher"       : {
+            "Type" : "AWS::SNS::Topic",
+            "Condition" : "CreateLauncherSNSTopic",
+            "Properties" : {
+                "DisplayName" : "S3KeyToHivePartitionLauncher",
+                "Subscription" : [
+                    {
+                        "Protocol" : "lambda",
+                        "Endpoint" : {
+                            "Fn::Sub" : "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${FunctionName}"
+                        }
+                    }
+                ],
+                "TopicName"    : "S3KeyToHivePartitionLauncher"
+            }
+        },
+        "OutputS3Bucket"         : {
+            "Type" : "AWS::S3::Bucket",
+            "Properties" : {
+                "BucketName" : {
+                    "Ref" : "OutputBucketName"
+                }
+            }
+        },
+		
+        "LambdaExecutionRole"     : {
+            "Type" : "AWS::IAM::Role",
+            "Properties" : {
+                "RoleName" : "HivePrefixConverter-LambdaRole",
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : [
+                                    "lambda.amazonaws.com"
+                                ]
+                            },
+                            "Action"    : [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "LambdaCWLPolicy"         : {
+            "Type" : "AWS::IAM::Policy",
+            "Properties" : {
+                "PolicyName" : "LambdaCWLPolicy",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "logs:CreateLogStream",
+                                "logs:CreateLogGroup",
+                                "logs:DescribeLogStreams",
+                                "logs:PutLogEvents",
+                                "logs:DescribeLogGroups"
+                            ],
+                            "Resource" : {
+                                "Fn::Sub" : "arn:aws:logs:*:${AWS::AccountId}:*"
+                            }
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "LambdaExecutionRole"
+                    }
+                ]
+            }
+        },
+        "LambdaS3Policy"          : {
+            "Type" : "AWS::IAM::Policy",
+            "Properties" : {
+                "PolicyName" : "LambdaS3Policy",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:ListBucket"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:aws:s3:::${IngestBucketName}"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:GetObject",
+                                "s3:DeleteObject",
+                                "s3:GetObjectTagging"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:aws:s3:::${IngestBucketName}/*"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:AbortMultipartUpload"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:aws:s3:::${OutputS3Bucket}"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:PutObject",
+                                "s3:PutObjectTagging"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:aws:s3:::${OutputS3Bucket}/*"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "LambdaExecutionRole"
+                    }
+                ]
+            },
+            "Description" : "Allows Lambda to get and put objects in S3."
+        },
+		"LambdaSNSPolicy" : {
+			"Type" : "AWS::IAM::Policy",
+			"Condition" : "CreateFailureSNSTopic",
+			"Properties" : {
+				"PolicyName" : "LambdaSNSPolicy",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "sns:Publish"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Ref" : "LambdaFailureTopic"
+                                }
+                            ]
+                        }                       
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "LambdaExecutionRole"
+                    }
+                ]
+			}
+		},
+        "CloudWatchLogGroup"      : {
+            "Type" : "AWS::Logs::LogGroup",
+            "Properties" : {
+                "LogGroupName" : {
+					"Fn::Sub" : "/aws/lambda/${FunctionName}"
+				},
+                "RetentionInDays" : {
+                    "Fn::If" : [
+                        "InfiniteRetention",
+                        {
+                            "Ref" : "AWS::NoValue"
+                        },
+                        {
+                            "Ref" : "LogRetentionInDays"
+                        }
+                    ]
+                }
+            }
+        },
+
+		"HivePrefixConverterLambdaSNSPermission": {
+			"Type":"AWS::Lambda::Permission",
+			"Condition" : "UseSNSNotification",
+			"Properties": {
+				"Action":"lambda:invokeFunction",
+				"Principal":"sns.amazonaws.com",
+				"FunctionName":{
+					"Ref":"HivePrefixConverterLambda"
+				},
+				"SourceArn":{
+					"Fn::If":[
+						"CreateLauncherSNSTopic",
+						{
+							"Ref":"LambdaSNSLauncher"
+						},
+						{
+							"Ref":"LambdaSNSLauncherTopicArn"
+						}
+					]
+				}
+			}
+		},
+
+		"HivePrefixConverterLambdaS3Permission": {
+			"Type":"AWS::Lambda::Permission",
+			"Condition" : "UseS3Notification",
+			"Properties": {
+				"Action":"lambda:invokeFunction",
+				"Principal":"s3.amazonaws.com",
+				"FunctionName":{
+					"Ref":"HivePrefixConverterLambda"
+				},
+				"SourceArn":{
+					"Fn::Sub" : "arn:aws:s3:::${IngestS3BucketWithS3}"
+				}
+			}
+		},
+
+        "HivePrefixConverterLambda" : {
+            "Type" : "AWS::Serverless::Function",
+            "Properties" : {
+                "Handler" : { 
+					"Fn::Sub" : [
+						"AmazonS3KeyToHivePartitionScheme::BAMCIS.LambdaFunctions.AmazonS3KeyToHivePartitionScheme.Entrypoint::${MethodName}",
+						{
+							"MethodName" : {
+								"Fn::FindInMap" : [
+									"Internal",
+									"MethodName",
+									{
+										"Ref" : "EventNotificationMethod"
+									}
+								]
+							}
+						}
+					]
+				},
+                "Runtime" : "dotnetcore2.1",
+                "CodeUri" : "",
+                "FunctionName" : {
+					"Ref" : "FunctionName"
+				},
+                "Description"  : "Converts an S3 object key from a /prefix/name to /key=prefix/name style for use with Hive technologies, like AWS Glue and Athena.",
+                "MemorySize"   : 128,
+                "Timeout"      : 300,
+                "Role"         : {
+                    "Fn::GetAtt" : [
+                        "LambdaExecutionRole",
+                        "Arn"
+                    ]
+                },
+                "Environment"  : {
+                    "Variables" : {
+                        "DELETE_SOURCE" : {
+							"Ref" : "DeleteOriginal"
+						},
+                        "S3_BUCKET"     : {
+                            "Ref" : "OutputS3Bucket"
+                        },
+                        "PREFIX_PATTERN" : {
+                            "Ref" : "NewKeyPattern"
+                        },
+                        "SNS_FAILURE_TOPIC_ARN" : {
+                            "Fn::If" : [
+                                "CreateFailureSNSTopic",
+                                {
+                                    "Ref" : "LambdaFailureTopic"
+                                },
+                                {
+                                    "Ref" : "AWS::NoValue"
+                                }
+                            ]
+                        }
+                    }
+                },
+                
+                "Tags"         : {
+                    "Name" : {
+						"Ref" : "FunctionName"
+					},
+                    "Environment" : {
+                        "Ref" : "EnvironmentTag"
+                    },
+                    "Application" : {
+                        "Ref" : "ApplicationTag"
+                    },
+                    "Organization" : {
+                        "Ref" : "OrganizationTag"
+                    }
+                }
+            }
+        }
+    },
+
+
+    "Outputs"                  : {
+		"FunctionArn" : {
+			"Value" : {
+				"Fn::Sub" : "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${FunctionName}"
+			}
+		}
+    }
+}
