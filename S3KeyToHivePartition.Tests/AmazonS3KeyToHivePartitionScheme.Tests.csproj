@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\S3KeyToHivePartition\S3KeyToHivePartition.csproj" />
+    <ProjectReference Include="..\S3KeyToHivePartition\AmazonS3KeyToHivePartitionScheme.csproj" />
   </ItemGroup>
 
 </Project>
