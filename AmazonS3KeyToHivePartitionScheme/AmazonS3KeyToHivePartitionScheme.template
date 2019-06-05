@@ -331,7 +331,7 @@
 						{
 							"Event" : "s3:ObjectCreated:*",
 							"Function" : {
-								"Fn::Sub" : "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${FunctionName}"
+								"Fn::GetAtt" : [ "HivePrefixConverterLambda", "Arn" ]
 							}
 						}
 					]
@@ -356,7 +356,10 @@
                         }
                     }
                 ]            
-            }			
+            },
+			"DependsOn" : [
+				"HivePrefixConverterLambdaS3Permission"
+			]
         },
         "LambdaSNSLauncherPolicy" : {
             "Type" : "AWS::SNS::TopicPolicy",
@@ -616,7 +619,7 @@
 					"Ref":"HivePrefixConverterLambda"
 				},
 				"SourceArn":{
-					"Fn::Sub" : "arn:aws:s3:::${IngestS3BucketWithS3}"
+					"Fn::Sub" : "arn:aws:s3:::${IngestBucketName}"
 				}
 			}
 		},
