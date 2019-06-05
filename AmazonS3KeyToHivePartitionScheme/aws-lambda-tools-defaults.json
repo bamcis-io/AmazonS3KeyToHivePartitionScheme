@@ -1,17 +1,18 @@
+
 {
-  "Information": [
-    "This file provides default values for the deployment wizard inside Visual Studio and the AWS Lambda commands added to the .NET Core CLI.",
-    "To learn more about the Lambda commands with the .NET Core CLI execute the following command at the command line in the project root directory.",
-    "dotnet lambda help",
-    "All the command line options for the Lambda command can be specified in this file."
-  ],
-  "profile": "",
-  "region": "us-east-1",
-  "configuration": "Release",
-  "framework": "netcoreapp2.1",
-  "s3-prefix": "AmazonS3KeyToHivePartitionScheme/",
-  "template": "AmazonS3KeyToHivePartitionScheme.template",
-  "template-parameters": "",
-  "s3-bucket": "",
-  "stack-name": "AmazonS3KeyToHivePartitionScheme"
+    "Information" : [
+        "This file provides default values for the deployment wizard inside Visual Studio and the AWS Lambda commands added to the .NET Core CLI.",
+        "To learn more about the Lambda commands with the .NET Core CLI execute the following command at the command line in the project root directory.",
+        "dotnet lambda help",
+        "All the command line options for the Lambda command can be specified in this file."
+    ],
+    "profile"     : "mhaken-cc-fraud-demo",
+    "region"      : "us-east-1",
+    "configuration" : "Release",
+    "framework"     : "netcoreapp2.1",
+    "s3-prefix"     : "AmazonS3KeyToHivePartitionScheme/",
+    "template"      : "AmazonS3KeyToHivePartitionScheme.template",
+    "template-parameters" : "\"OutputBucketName\"=\"mhaken-cc-transactions-processed\";\"IngestBucketName\"=\"mhaken-cc-transactions-raw\";\"CreateIngestBucket\"=\"yes\";\"CreateOutputBucket\"=\"yes\";\"FunctionName\"=\"S3KeyToHivePartition\";\"NewKeyPattern\"=\"year={0}/month={1}/day={2}/hour={3}/{4}\";\"DeleteOriginal\"=\"true\";\"LogRetentionInDays\"=\"7\";\"LambdaSNSLauncherTopicArn\"=\"\";\"EventNotificationMethod\"=\"s3\";\"FailureNotificationEmail\"=\"mhaken@amazon.com\";\"OrganizationTag\"=\"bamcis\";\"ApplicationTag\"=\"cc-fraud-demo\";\"EnvironmentTag\"=\"demo\"",
+    "s3-bucket"           : "mhaken-cc-fraud-cf",
+    "stack-name"          : "AmazonS3KeyToHivePartitionScheme"
 }
