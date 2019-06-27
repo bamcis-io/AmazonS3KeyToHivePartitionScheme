@@ -1,0 +1,4 @@
+96502c9c4217d7c70c5d2893f14e1a6b41a3e6e7 661 aws-lambda-tools-defaults.json
+1332e7b84d1c78af1328b3767fc399d12fb90369 1427 aws-lambda-tools-defaults.json
+f2724466c294cb9a3d4a6fb32d45b094bdb3bef3 751 aws-lambda-tools-defaults.json
+e0265f8d29915b2384a2e4f70a856f92197fc212 1428 aws-lambda-tools-defaults.json
